@@ -1,15 +1,15 @@
 const express = require("express");
 const AuthController = require("../app/controllers/AuthController");
-const AuthMiddleware = require("../app/middlewares/AuthMiddleware");
-
 const router = express.Router();
+const {
+  verifyToken,
+  checkEmailStatus,
+} = require("../app/middlewares/AuthMiddleware");
 
-router.post("/register", AuthController.register);
+router.post("/register", checkEmailStatus, AuthController.register);
+router.post("/verify", AuthController.verifyEmail);
 router.post("/login", AuthController.login);
-
-// route test auth middleware
-router.get("/profile", AuthMiddleware, (req, res) => {
-  res.json({ message: "You are authenticated" });
-});
+router.post("/google", AuthController.googleLogin);
+router.post("/logout", verifyToken, AuthController.logout);
 
 module.exports = router;
