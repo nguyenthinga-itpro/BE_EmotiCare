@@ -5,53 +5,95 @@ const spotifyApi = new SpotifyWebApi({
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
 });
 
-// Cache token và thời gian hết hạn
 let tokenExpiresAt = 0;
 
 async function ensureAccessToken() {
   const now = Date.now();
   if (!spotifyApi.getAccessToken() || now >= tokenExpiresAt) {
-    try {
-      const data = await spotifyApi.clientCredentialsGrant();
-      spotifyApi.setAccessToken(data.body["access_token"]);
-      tokenExpiresAt = now + data.body["expires_in"] * 1000 - 60000; // trừ 1 phút buffer
-      console.log("Spotify access token updated");
-    } catch (err) {
-      console.error("Spotify token error:", err.message);
-      throw err;
-    }
+    const data = await spotifyApi.clientCredentialsGrant();
+    spotifyApi.setAccessToken(data.body.access_token);
+    tokenExpiresAt = now + data.body.expires_in * 1000 - 60000;
+    console.log("Spotify access token updated");
   }
 }
 
-async function getTrack(trackUrlOrId) {
-  try {
-    await ensureAccessToken();
+// Parse ID & type từ link
+function parseSpotifyUrl(urlOrId) {
+  if (!urlOrId) return null;
 
-    // Tách track ID nếu gửi URL
-    const trackId = trackUrlOrId.includes("track/")
-      ? trackUrlOrId.split("/track/")[1]?.split("?")[0]
-      : trackUrlOrId;
+  if (urlOrId.includes("spotify.com")) {
+    const parts = urlOrId.split("/");
+    const type = parts[3]; // track | album | playlist | artist
+    const id = parts[4]?.split("?")[0];
+    return { type, id };
+  }
 
-    if (!trackId) return null;
+  // fallback: chỉ có id (giả định là track)
+  return { type: "track", id: urlOrId };
+}
 
-    const data = await spotifyApi.getTrack(trackId);
-    return {
-      id: data.body.id,
-      name: data.body.name,
-      artists: data.body.artists.map((a) => a.name),
-      album: data.body.album.name,
-      preview_url: data.body.preview_url,
-      external_url: data.body.external_urls.spotify,
-    };
-  } catch (err) {
-    console.warn(
-      "Spotify track fetch failed, fallback lưu link gốc:",
-      trackUrlOrId,
-      "Error:",
-      err.message
-    );
-    return null; // fallback cho controller
+async function getSpotifyData(urlOrId) {
+  await ensureAccessToken();
+
+  const parsed = parseSpotifyUrl(urlOrId);
+  if (!parsed) return null;
+
+  const { type, id } = parsed;
+
+  let data;
+  switch (type) {
+    case "track":
+      data = await spotifyApi.getTrack(id);
+      return {
+        id: data.body.id,
+        type: "track",
+        name: data.body.name,
+        artists: data.body.artists.map((a) => a.name),
+        album: data.body.album.name,
+        preview_url: data.body.preview_url,
+        external_url: data.body.external_urls.spotify,
+      };
+
+    case "album":
+      data = await spotifyApi.getAlbum(id);
+      return {
+        id: data.body.id,
+        type: "album",
+        name: data.body.name,
+        artists: data.body.artists.map((a) => a.name),
+        total_tracks: data.body.total_tracks,
+        release_date: data.body.release_date,
+        external_url: data.body.external_urls.spotify,
+        images: data.body.images,
+      };
+
+    case "playlist":
+      data = await spotifyApi.getPlaylist(id);
+      return {
+        id: data.body.id,
+        type: "playlist",
+        name: data.body.name,
+        owner: data.body.owner.display_name,
+        total_tracks: data.body.tracks.total,
+        external_url: data.body.external_urls.spotify,
+        images: data.body.images,
+      };
+
+    case "artist":
+      data = await spotifyApi.getArtist(id);
+      return {
+        id: data.body.id,
+        type: "artist",
+        name: data.body.name,
+        genres: data.body.genres,
+        followers: data.body.followers.total,
+        external_url: data.body.external_urls.spotify,
+        images: data.body.images,
+      };
+
+    default:
+      throw new Error(`Unsupported Spotify type: ${type}`);
   }
 }
 
-module.exports = { getTrack };
+module.exports = { getSpotifyData };

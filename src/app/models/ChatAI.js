@@ -4,6 +4,7 @@ class ChatAI {
     userId,
     name,
     image,
+    categoryId,
     systemPrompt,
     defaultGreeting,
     description,
@@ -15,6 +16,7 @@ class ChatAI {
     this.userId = userId;
     this.name = name;
     this.image = image;
+    this.categoryId = categoryId;
     this.systemPrompt = systemPrompt;
     this.defaultGreeting = defaultGreeting;
     this.description = description;
@@ -30,6 +32,7 @@ class ChatAI {
       data.userId,
       data.name,
       data.image,
+      data.categoryId,
       data.systemPrompt,
       data.defaultGreeting,
       data.description,

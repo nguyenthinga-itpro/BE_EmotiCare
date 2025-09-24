@@ -1,8 +1,9 @@
 class FAQ {
-  constructor(id, question, answer, isDisabled, updatedAt) {
+  constructor(id, question, answer, category, isDisabled, updatedAt) {
     this.id = id;
     this.question = question;
     this.answer = answer;
+    this.category = category;
     this.isDisabled = isDisabled;
     this.updatedAt = updatedAt;
   }
@@ -13,6 +14,7 @@ class FAQ {
       doc.id,
       data.question,
       data.answer,
+      data.category,
       data.isDisabled,
       data.updatedAt?.toDate().toLocaleString("vi-VN")
     );
