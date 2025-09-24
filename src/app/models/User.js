@@ -13,6 +13,7 @@ class User {
     role,
     isVerify,
     mode,
+    lastActive,
     isDisabled,
     createdAt,
     updatedAt
@@ -28,6 +29,7 @@ class User {
     this.role = role;
     this.isVerify = isVerify;
     this.mode = mode;
+    this.lastActive = lastActive;
     this.isDisabled = isDisabled;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
@@ -47,6 +49,7 @@ class User {
       data.role,
       data.isVerify,
       data.mode,
+      data.lastActive,
       data.isDisabled,
       data.createdAt?.toDate().toLocaleString("vi-VN"),
       data.updatedAt?.toDate().toLocaleString("vi-VN")
