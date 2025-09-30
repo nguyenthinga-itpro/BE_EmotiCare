@@ -8,7 +8,7 @@ const EmotionSessionRouter = require("../routes/EmotionSessionRouter");
 const FAQRouter = require("../routes/FAQRouter");
 const PostcardFavoriteRouter = require("../routes/PostcardFavoriteRouter");
 const PostcardRouter = require("../routes/PostcardRouter");
-const PostcardShareRouter = require("../routes/PostcardShare");
+const PostcardCommentRouter = require("../routes/PostcardCommentRouter");
 const ResourceRouter = require("../routes/ResourceRouter");
 const FileRouter = require("../routes/FileRouter");
 const CategoryRouter = require("../routes/CategoryRouter");
@@ -23,7 +23,7 @@ function route(app) {
   app.use("/faq", FAQRouter);
   app.use("/favorite", PostcardFavoriteRouter);
   app.use("/postcard", PostcardRouter);
-  app.use("/share", PostcardShareRouter);
+  app.use("/comment", PostcardCommentRouter);
   app.use("/resource", ResourceRouter);
   app.use("/file", FileRouter);
   app.use("/category", CategoryRouter);

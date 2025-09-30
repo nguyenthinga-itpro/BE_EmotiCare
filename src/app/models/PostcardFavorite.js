@@ -1,9 +1,8 @@
 class PostcardFavorite {
-  constructor(id, postcardId, userId, quantity, createdAt) {
+  constructor(id, postcardId, userId, createdAt) {
     this.id = id;
     this.postcardId = postcardId;
     this.userId = userId;
-    this.quantity = quantity;
     this.createdAt = createdAt;
   }
 
@@ -13,7 +12,6 @@ class PostcardFavorite {
       doc.id,
       data.postcardId,
       data.userId,
-      data.quantity,
       data.createdAt?.toDate().toLocaleString("vi-VN")
     );
   }
