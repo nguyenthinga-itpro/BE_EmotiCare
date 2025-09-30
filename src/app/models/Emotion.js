@@ -2,7 +2,7 @@ class Emotion {
   constructor(
     id,
     name,
-    category,
+    categoryId,
     emoji,
     description,
     isDisabled,
@@ -11,7 +11,7 @@ class Emotion {
   ) {
     this.id = id;
     this.name = name;
-    this.category = category;
+    this.categoryId = categoryId;
     this.emoji = emoji;
     this.description = description;
     this.isDisabled = isDisabled;
@@ -24,7 +24,7 @@ class Emotion {
     return new Emotion(
       doc.id,
       data.name,
-      data.category,
+      data.categoryId,
       data.emoji,
       data.description,
       data.isDisabled || false,

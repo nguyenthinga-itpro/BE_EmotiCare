@@ -33,12 +33,15 @@ const serviceAccount = {
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
+    databaseURL: process.env.FIREBASE_DATABASE_URL,
   });
 }
 
 const adminDB = admin.firestore(); // Firestore Admin
+const adminRTDB = admin.database();
 // Export cho controller sử dụng
 module.exports = {
   admin,
   adminDB, // Firestore admin, dùng luôn
+  adminRTDB,
 };

@@ -1,108 +1,141 @@
 // controllers/FAQController.js
 const { adminDB } = require("../../config/firebase");
+const { Timestamp } = require("firebase-admin/firestore");
 const FAQ = require("../models/FAQ");
 
 const faqsCollection = adminDB.collection("faqs");
 
 const FAQController = {
-  getAll: async (req, res) => {
+  // === GET ALL FAQS (pagination + sort) ===
+  getAllFaqs: async (req, res) => {
     try {
-      let { page = 1, pageSize = 10 } = req.query;
-      page = parseInt(page);
+      let { pageSize = 10, sort = "desc", startAfterId } = req.query;
       pageSize = parseInt(pageSize);
 
-      const snapshot = await faqsCollection.orderBy("updatedAt", "desc").get();
-      const allFaqs = snapshot.docs
-        .map((doc) => FAQ.fromFirestore(doc))
-        .filter((faq) => !faq.isDisabled);
+      let queryRef = faqsCollection;
+      let countQueryRef = faqsCollection;
 
-      const startIndex = (page - 1) * pageSize;
-      const pagedFaqs = allFaqs.slice(startIndex, startIndex + pageSize);
+      // count documents
+      const snapshotCount = await countQueryRef.count().get();
+      const total = snapshotCount.data().count;
+
+      queryRef = queryRef.orderBy("updatedAt", sort);
+      if (startAfterId) {
+        const startAfterDoc = await faqsCollection.doc(startAfterId).get();
+        if (startAfterDoc.exists) {
+          queryRef = queryRef.startAfter(startAfterDoc);
+        }
+      }
+      queryRef = queryRef.limit(pageSize);
+
+      const snapshot = await queryRef.get();
+      const faqs = snapshot.docs.map((doc) => FAQ.fromFirestore(doc));
 
       res.status(200).json({
-        page,
         pageSize,
-        total: allFaqs.length,
-        faqs: pagedFaqs,
+        total,
+        faqs,
+        sort: sort === "asc" ? "oldest" : "newest",
+        nextCursor: faqs.length ? faqs[faqs.length - 1].id : null,
       });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    } catch (err) {
+      console.error("Get all FAQs error:", err);
+      res.status(500).json({ error: err.message });
     }
   },
 
-  getById: async (req, res) => {
+  // === GET FAQ BY ID ===
+  getFaqById: async (req, res) => {
     try {
       const doc = await faqsCollection.doc(req.params.id).get();
       if (!doc.exists) return res.status(404).json({ error: "FAQ not found" });
+
       res.status(200).json(FAQ.fromFirestore(doc));
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    } catch (err) {
+      console.error("Get FAQ by ID error:", err);
+      res.status(500).json({ error: err.message });
     }
   },
 
-  create: async (req, res) => {
+  // === CREATE FAQ ===
+  createFaq: async (req, res) => {
     try {
-      const { question, answer } = req.body;
-      if (!question || !answer)
+      const { question, answer, category } = req.body;
+      if (!question || !answer) {
         return res.status(400).json({ error: "Question and Answer required" });
+      }
 
-      const newDoc = await faqsCollection.add({
+      const newFaq = {
         question,
         answer,
+        category,
         isDisabled: false,
-        updatedAt: new Date(),
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      const docRef = await faqsCollection.add(newFaq);
+      const createdDoc = await docRef.get();
+
+      res.status(201).json({
+        message: "FAQ created",
+        faq: FAQ.fromFirestore(createdDoc),
       });
-      const doc = await newDoc.get();
-      res
-        .status(201)
-        .json({ message: "FAQ created", faq: FAQ.fromFirestore(doc) });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    } catch (err) {
+      console.error("Create FAQ error:", err);
+      res.status(500).json({ error: err.message });
     }
   },
 
-  update: async (req, res) => {
+  // === UPDATE FAQ ===
+  updateFaq: async (req, res) => {
     try {
       const { id } = req.params;
-      const { question, answer, isDisabled } = req.body;
+      const updates = { ...req.body, updatedAt: Timestamp.now() };
 
       const docRef = faqsCollection.doc(id);
       const doc = await docRef.get();
       if (!doc.exists) return res.status(404).json({ error: "FAQ not found" });
 
-      await docRef.update({
-        question: question ?? doc.data().question,
-        answer: answer ?? doc.data().answer,
-        isDisabled: isDisabled ?? doc.data().isDisabled,
-        updatedAt: new Date(),
-      });
-
+      await docRef.update(updates);
       const updatedDoc = await docRef.get();
-      res
-        .status(200)
-        .json({ message: "FAQ updated", faq: FAQ.fromFirestore(updatedDoc) });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+
+      res.status(200).json({
+        message: "FAQ updated",
+        faq: FAQ.fromFirestore(updatedDoc),
+      });
+    } catch (err) {
+      console.error("Update FAQ error:", err);
+      res.status(500).json({ error: err.message });
     }
   },
 
-  delete: async (req, res) => {
+  // === TOGGLE FAQ STATUS ===
+  toggleFaqStatus: async (req, res) => {
     try {
-      const docRef = faqsCollection.doc(req.params.id);
+      const { id } = req.params;
+      const { isDisabled } = req.body;
+
+      if (typeof isDisabled !== "boolean") {
+        return res.status(400).json({ error: "isDisabled must be boolean" });
+      }
+
+      const docRef = faqsCollection.doc(id);
       const doc = await docRef.get();
       if (!doc.exists) return res.status(404).json({ error: "FAQ not found" });
 
-      await docRef.update({ isDisabled: true, updatedAt: new Date() });
+      await docRef.update({ isDisabled, updatedAt: Timestamp.now() });
       const updatedDoc = await docRef.get();
 
-      res
-        .status(200)
-        .json({
-          message: "FAQ disabled successfully",
-          faq: FAQ.fromFirestore(updatedDoc),
-        });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(200).json({
+        message: isDisabled
+          ? "FAQ disabled successfully"
+          : "FAQ enabled successfully",
+        faq: FAQ.fromFirestore(updatedDoc),
+      });
+    } catch (err) {
+      console.error("Toggle FAQ status error:", err);
+      res.status(500).json({ error: err.message });
     }
   },
 };

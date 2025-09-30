@@ -1,92 +1,99 @@
+// module.exports = EmotionController;
 const { adminDB } = require("../../config/firebase");
 const Emotion = require("../models/Emotion");
-
+const { Timestamp } = require("firebase-admin/firestore");
 const emotionsCollection = adminDB.collection("emotions");
 
 const EmotionController = {
-  // GET all emotions với phân trang
-  getAll: async (req, res) => {
+  // === GET ALL EMOTIONS (with pagination, filters) ===
+  getAllEmotions: async (req, res) => {
     try {
-      let { page = 1, pageSize = 10 } = req.query;
-      page = parseInt(page);
+      let { pageSize = 10, categoryId, sort = "desc", startAfterId } = req.query;
       pageSize = parseInt(pageSize);
 
-      const snapshot = await emotionsCollection
-        .orderBy("updatedAt", "desc")
-        .get();
-      const allEmotions = snapshot.docs
-        .map((doc) => Emotion.fromFirestore(doc))
-        .filter((e) => !e.isDisabled);
+      let queryRef = emotionsCollection;
+      let countQueryRef = emotionsCollection;
 
-      const startIndex = (page - 1) * pageSize;
-      const pagedEmotions = allEmotions.slice(
-        startIndex,
-        startIndex + pageSize
-      );
+      // --- filter categoryId ---
+      if (categoryId) {
+        queryRef = queryRef.where("categoryId", "==", categoryId);
+        countQueryRef = countQueryRef.where("categoryId", "==", categoryId);
+      }
 
+      // --- total emotions ---
+      const snapshotCount = await countQueryRef.count().get();
+      const total = snapshotCount.data().count;
+
+      // --- phân trang ---
+      queryRef = queryRef.orderBy("createdAt", sort); // cần orderBy trước startAfter
+      if (startAfterId) {
+        const startAfterDoc = await emotionsCollection.doc(startAfterId).get();
+        if (startAfterDoc.exists) queryRef = queryRef.startAfter(startAfterDoc);
+      }
+      queryRef = queryRef.limit(pageSize);
+
+      // --- lấy emotions ---
+      const snapshot = await queryRef.get();
+      let emotions = snapshot.docs.map((doc) => Emotion.fromFirestore(doc));
+
+      // --- trả về ---
       res.status(200).json({
-        page,
         pageSize,
-        total: allEmotions.length,
-        emotions: pagedEmotions,
+        total,
+        emotions,
+        sort: sort === "asc" ? "oldest" : "newest",
+        nextCursor: emotions.length ? emotions[emotions.length - 1].id : null,
       });
-    } catch (err) {
-      console.error("Get all emotions error:", err);
-      res.status(500).json({ error: err.message });
+    } catch (error) {
+      console.error("Get all emotions error:", error);
+      res.status(500).json({ error: error.message });
     }
   },
 
-  // GET single emotion by ID
-  getById: async (req, res) => {
+  // === GET EMOTION BY ID ===
+  getEmotionById: async (req, res) => {
     try {
       const doc = await emotionsCollection.doc(req.params.id).get();
       if (!doc.exists)
         return res.status(404).json({ error: "Emotion not found" });
-      res.status(200).json(Emotion.fromFirestore(doc));
-    } catch (err) {
-      console.error("Get emotion by ID error:", err);
-      res.status(500).json({ error: err.message });
+
+      const emotion = Emotion.fromFirestore(doc);
+      res.status(200).json(emotion);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
   },
-
-  // CREATE new emotion
-  create: async (req, res) => {
+  createEmotion: async (req, res) => {
     try {
-      const { name, category, emoji, description } = req.body;
-      if (!name) return res.status(400).json({ error: "Name is required" });
+      const { name, emoji, description, categoryId } = req.body;
 
-      const now = new Date().toISOString();
-      const newDoc = emotionsCollection.doc();
+      if (!name) {
+        return res.status(400).json({ error: "Name is required" });
+      }
 
-      await newDoc.set({
+      const newEmotion = {
         name,
-        category: category || "",
-        emoji: emoji || "",
+        categoryId,
+        emoji,
         description: description || "",
         isDisabled: false,
-        createdAt: now,
-        updatedAt: now,
-      });
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      const doc = await newDoc.get();
-      res
-        .status(201)
-        .json({
-          message: "Emotion created",
-          emotion: Emotion.fromFirestore(doc),
-        });
-    } catch (err) {
-      console.error("Create emotion error:", err);
-      res.status(500).json({ error: err.message });
+      const docRef = await emotionsCollection.add(newEmotion);
+      const createdDoc = await docRef.get();
+
+      res.status(201).json({ id: docRef.id, ...createdDoc.data() });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
     }
   },
-
-  // UPDATE emotion by ID
-  update: async (req, res) => {
+  // === UPDATE EMOTION ===
+  updateEmotion: async (req, res) => {
     try {
       const { id } = req.params;
-      const updates = req.body;
-      updates.updatedAt = new Date().toISOString();
+      const updates = { ...req.body, updatedAt: Timestamp.now() };
 
       const docRef = emotionsCollection.doc(id);
       const doc = await docRef.get();
@@ -94,44 +101,41 @@ const EmotionController = {
         return res.status(404).json({ error: "Emotion not found" });
 
       await docRef.update(updates);
-
       const updatedDoc = await docRef.get();
-      res
-        .status(200)
-        .json({
-          message: "Emotion updated",
-          emotion: Emotion.fromFirestore(updatedDoc),
-        });
+
+      res.status(200).json({
+        message: "Emotion updated",
+        emotion: Emotion.fromFirestore(updatedDoc),
+      });
     } catch (err) {
       console.error("Update emotion error:", err);
       res.status(500).json({ error: err.message });
     }
   },
 
-  // DELETE emotion = set isDisabled: true
-  delete: async (req, res) => {
+  // === TOGGLE EMOTION STATUS ===
+  toggleEmotionStatus: async (req, res) => {
     try {
-      const { id } = req.params;
-      const docRef = emotionsCollection.doc(id);
-      const doc = await docRef.get();
+      const emotionRef = emotionsCollection.doc(req.params.id);
+      const doc = await emotionRef.get();
       if (!doc.exists)
         return res.status(404).json({ error: "Emotion not found" });
 
-      await docRef.update({
-        isDisabled: true,
-        updatedAt: new Date().toISOString(),
-      });
+      const { isDisabled } = req.body;
+      if (typeof isDisabled !== "boolean")
+        return res.status(400).json({ error: "isDisabled must be boolean" });
 
-      const updatedDoc = await docRef.get();
-      res
-        .status(200)
-        .json({
-          message: "Emotion disabled successfully",
-          emotion: Emotion.fromFirestore(updatedDoc),
-        });
-    } catch (err) {
-      console.error("Delete emotion error:", err);
-      res.status(500).json({ error: err.message });
+      await emotionRef.update({ isDisabled, updatedAt: new Date() });
+      const updatedDoc = await emotionRef.get();
+
+      res.status(200).json({
+        message: isDisabled
+          ? "Emotion disabled successfully"
+          : "Emotion enabled successfully",
+        emotion: Emotion.fromFirestore(updatedDoc),
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
   },
 };

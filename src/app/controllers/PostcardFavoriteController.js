@@ -1,124 +1,65 @@
-const { adminDB } = require("../../config/firebase");
-const PostcardFavorite = require("../models/PostcardFavorite");
-
-const favoritesCollection = adminDB.collection("postcardFavorites");
+const { adminRTDB } = require("../../config/firebase");
+const favoritesRef = adminRTDB.ref("postcardFavorites");
 
 const PostcardFavoriteController = {
-  // GET all favorites with pagination
-  getAll: async (req, res) => {
+  // Get all postcards' favorite counts
+  getAllFavorites: async (req, res) => {
     try {
-      let { page = 1, pageSize = 10 } = req.query;
-      page = parseInt(page);
-      pageSize = parseInt(pageSize);
+      const snapshot = await favoritesRef.once("value");
+      const allData = snapshot.val() || {}; // { postcardId1: {userId: true}, postcardId2: {...} }
+      const result = {};
 
-      const snapshot = await favoritesCollection
-        .orderBy("createdAt", "desc")
-        .get();
-
-      const allFavorites = snapshot.docs.map((doc) =>
-        PostcardFavorite.fromFirestore(doc)
-      );
-
-      const startIndex = (page - 1) * pageSize;
-      const pagedFavorites = allFavorites.slice(
-        startIndex,
-        startIndex + pageSize
-      );
-
-      res.status(200).json({
-        page,
-        pageSize,
-        total: allFavorites.length,
-        favorites: pagedFavorites,
+      Object.keys(allData).forEach((postcardId) => {
+        result[postcardId] = Object.keys(allData[postcardId]).length;
       });
-    } catch (err) {
-      console.error("Get all postcard favorites error:", err);
-      res.status(500).json({ error: err.message });
+
+      res.status(200).json(result); // { postcardId1: 3, postcardId2: 5, ... }
+    } catch (error) {
+      console.error("Get all favorites error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+  // Toggle favorite (like / unlike)
+  toggleFavorite: async (req, res) => {
+    const { postcardId } = req.params;
+    const { userId } = req.body;
+    console.log(postcardId, userId);
+    if (!userId) return res.status(400).json({ error: "userId is required" });
+
+    try {
+      const userFavoriteRef = favoritesRef.child(`${postcardId}/${userId}`);
+      const snapshot = await userFavoriteRef.once("value");
+
+      if (snapshot.exists()) {
+        await userFavoriteRef.remove();
+        res.status(200).json({ message: "Unfavorited", isFavorite: false });
+      } else {
+        await userFavoriteRef.set(true);
+        res.status(200).json({ message: "Favorited", isFavorite: true });
+      }
+    } catch (error) {
+      console.error("Toggle favorite error:", error);
+      res.status(500).json({ error: error.message });
     }
   },
 
-  // GET single favorite by ID
-  getById: async (req, res) => {
+  // Get total favorites & check if user liked
+  getFavoriteInfo: async (req, res) => {
+    const { postcardId } = req.params;
+    const { userId } = req.query; // Optional: check user
+
     try {
-      const doc = await favoritesCollection.doc(req.params.id).get();
-      if (!doc.exists)
-        return res.status(404).json({ error: "Favorite not found" });
+      const postcardFavorites = await favoritesRef
+        .child(postcardId)
+        .once("value");
+      const data = postcardFavorites.val() || {};
+      const totalFavorites = Object.keys(data).length;
+      const isFavorite = userId ? !!data[userId] : false;
 
-      res.status(200).json(PostcardFavorite.fromFirestore(doc));
-    } catch (err) {
-      console.error("Get postcard favorite by ID error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  },
-
-  // CREATE new favorite
-  create: async (req, res) => {
-    try {
-      const { postcardId, userId, quantity = 1 } = req.body;
-      if (!postcardId || !userId)
-        return res
-          .status(400)
-          .json({ error: "postcardId and userId required" });
-
-      const now = new Date().toISOString();
-      const newDoc = favoritesCollection.doc();
-      await newDoc.set({
-        postcardId,
-        userId,
-        quantity,
-        createdAt: now,
-      });
-
-      const doc = await newDoc.get();
-      res.status(201).json({
-        message: "Favorite created successfully",
-        favorite: PostcardFavorite.fromFirestore(doc),
-      });
-    } catch (err) {
-      console.error("Create postcard favorite error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  },
-
-  // UPDATE favorite by ID
-  update: async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updates = req.body;
-
-      const docRef = favoritesCollection.doc(id);
-      const doc = await docRef.get();
-      if (!doc.exists)
-        return res.status(404).json({ error: "Favorite not found" });
-
-      await docRef.update({ ...updates, updatedAt: new Date().toISOString() });
-      const updatedDoc = await docRef.get();
-
-      res.status(200).json({
-        message: "Favorite updated successfully",
-        favorite: PostcardFavorite.fromFirestore(updatedDoc),
-      });
-    } catch (err) {
-      console.error("Update postcard favorite error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  },
-
-  // DELETE favorite by ID (optional soft delete)
-  delete: async (req, res) => {
-    try {
-      const { id } = req.params;
-      const docRef = favoritesCollection.doc(id);
-      const doc = await docRef.get();
-      if (!doc.exists)
-        return res.status(404).json({ error: "Favorite not found" });
-
-      await docRef.delete();
-
-      res.status(200).json({ message: "Favorite deleted successfully" });
-    } catch (err) {
-      console.error("Delete postcard favorite error:", err);
-      res.status(500).json({ error: err.message });
+      res.status(200).json({ totalFavorites, isFavorite });
+    } catch (error) {
+      console.error("Get favorite info error:", error);
+      res.status(500).json({ error: error.message });
     }
   },
 };

@@ -8,6 +8,6 @@ router.get("/", ChatSessionController.getAll); // GET /api/personas?page=1&limit
 router.get("/:id", ChatSessionController.getById); // GET /api/personas/:id
 router.post("/", ChatSessionController.create); // POST /api/personas
 router.patch("/:id", ChatSessionController.update); // patch /api/personas/:id
-router.delete("/:id", ChatSessionController.delete); // DELETE /api/personas/:id
+router.patch("/:id/status", ChatSessionController.toggleStatus); // patch /api/personas/:id
 
 module.exports = router;

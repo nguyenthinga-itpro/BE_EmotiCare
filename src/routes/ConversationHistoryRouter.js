@@ -8,6 +8,6 @@ router.get("/", ConversationHistoryController.getAll); // GET /api/personas?page
 router.get("/:id", ConversationHistoryController.getById); // GET /api/personas/:id
 router.post("/", ConversationHistoryController.create); // POST /api/personas
 router.patch("/:id", ConversationHistoryController.update); // patch /api/personas/:id
-router.delete("/:id", ConversationHistoryController.delete); // DELETE /api/personas/:id
+router.patch("/:id", ConversationHistoryController.delete); // patch /api/personas/:id
 
 module.exports = router;
