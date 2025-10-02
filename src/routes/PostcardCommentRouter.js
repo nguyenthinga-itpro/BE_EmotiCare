@@ -7,7 +7,7 @@ router.get(
   "/:postcardId/comments",
   PostcardCommentController.getCommentsByPostcardId
 );
-
+router.put("/:id", PostcardCommentController.editComment);
 // Tạo comment mới (parentId để xác định comment cha)
 router.post("/:postcardId/comments", PostcardCommentController.addComment);
 

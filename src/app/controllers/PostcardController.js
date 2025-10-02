@@ -115,14 +115,15 @@ const PostcardController = {
   // === CREATE POSTCARD ===
   createPostcard: async (req, res) => {
     try {
-      const { title, description, image, categoryId, music } = req.body;
+      const { title, description, image, categoryId, music, author } = req.body;
       console.log(
         "title, description, image, category, music ",
         title,
         description,
         image,
         categoryId,
-        music
+        music,
+        author
       );
       if (!image) {
         return res
@@ -141,6 +142,7 @@ const PostcardController = {
         image,
         categoryId: categoryId || "",
         music: musicData,
+        author,
         isDisabled: false,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),

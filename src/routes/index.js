@@ -12,6 +12,7 @@ const PostcardCommentRouter = require("../routes/PostcardCommentRouter");
 const ResourceRouter = require("../routes/ResourceRouter");
 const FileRouter = require("../routes/FileRouter");
 const CategoryRouter = require("../routes/CategoryRouter");
+//const PostcardSpotifyPlayerRouter = require("../routes/PostcardSpotifyPlayerRouter");
 function route(app) {
   app.use("/auth", AuthRouter);
   app.use("/chat", ChatAIRouter);
@@ -27,6 +28,7 @@ function route(app) {
   app.use("/resource", ResourceRouter);
   app.use("/file", FileRouter);
   app.use("/category", CategoryRouter);
+  // app.use("/spotify", PostcardSpotifyPlayerRouter);
 }
 
 module.exports = route;

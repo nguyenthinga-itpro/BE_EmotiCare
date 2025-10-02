@@ -82,6 +82,46 @@ const PostcardCommentController = {
       res.status(500).json({ error: err.message });
     }
   },
+  // === EDIT COMMENT ===
+  editComment: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { userId, content } = req.body;
+
+      if (!content) return res.status(400).json({ error: "Content required" });
+
+      const snap = await commentsRef.child(id).once("value");
+      const comment = snap.val();
+      if (!comment) return res.status(404).json({ error: "Comment not found" });
+
+      // Chỉ cho sửa nếu đúng owner comment
+      if (comment.userId !== userId) {
+        return res
+          .status(403)
+          .json({ error: "You can only edit your own comment" });
+      }
+
+      // Giới hạn thời gian 1 tiếng như delete
+      const oneHour = 60 * 60 * 1000;
+      if (Date.now() - comment.createdAt > oneHour) {
+        return res.status(403).json({ error: "Can only edit within 1 hour" });
+      }
+
+      // Cập nhật nội dung & lưu thêm editedAt
+      const updatedData = {
+        ...comment,
+        content,
+        editedAt: Date.now(),
+      };
+
+      await commentsRef.child(id).set(updatedData);
+
+      res.status(200).json(updatedData);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
+    }
+  },
 
   // === DELETE COMMENT + ALL NESTED REPLIES ===
   deleteComment: async (req, res) => {
