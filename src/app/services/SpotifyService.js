@@ -94,6 +94,7 @@ async function getSpotifyData(urlOrId) {
     default:
       throw new Error(`Unsupported Spotify type: ${type}`);
   }
+  
 }
 
 module.exports = { getSpotifyData };

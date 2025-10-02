@@ -6,6 +6,7 @@ class Postcard {
     image,
     categoryId,
     music,
+    author,
     isDisabled,
     createdAt,
     updatedAt
@@ -16,6 +17,7 @@ class Postcard {
     this.image = image;
     this.categoryId = categoryId;
     this.music = music;
+    this.author = author;
     this.isDisabled = isDisabled;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
@@ -30,6 +32,7 @@ class Postcard {
       data.image,
       data.categoryId,
       data.music,
+      data.author,
       data.isDisabled,
       data.createdAt?.toDate().toLocaleString("vi-VN"),
       data.updatedAt?.toDate().toLocaleString("vi-VN")
