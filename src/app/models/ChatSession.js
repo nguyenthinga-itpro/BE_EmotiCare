@@ -1,22 +1,21 @@
+// models/ChatSession.js
 class ChatSession {
   constructor(
     id,
     userId,
     chatAIId,
-    rating,
-    messageCount,
-    isCompletetion,
+    systemPrompt,
     createdAt,
-    updatedAt
+    updatedAt,
+    isDisabled
   ) {
     this.id = id;
     this.userId = userId;
     this.chatAIId = chatAIId;
-    this.rating = rating;
-    this.messageCount = messageCount;
-    this.isCompletetion = isCompletetion;
+    this.systemPrompt = systemPrompt;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.isDisabled = isDisabled;
   }
 
   static fromFirestore(doc) {
@@ -25,11 +24,10 @@ class ChatSession {
       doc.id,
       data.userId,
       data.chatAIId,
-      data.rating,
-      data.messageCount,
-      data.isCompletetion,
-      data.createdAt?.toDate().toLocaleString("vi-VN"),
-      data.updatedAt?.toDate().toLocaleString("vi-VN")
+      data.systemPrompt,
+      data.createdAt,
+      data.updatedAt,
+      data.isDisabled
     );
   }
 }

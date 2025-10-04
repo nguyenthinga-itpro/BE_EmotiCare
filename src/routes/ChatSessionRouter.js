@@ -1,13 +1,18 @@
-// src/routes/ai.js
+// routes/chatSessions.js
 const express = require("express");
 const router = express.Router();
 const ChatSessionController = require("../app/controllers/ChatSessionController");
+router.get("/", ChatSessionController.getAllSessions);
+// Tạo session mới
+router.post("/create", ChatSessionController.createSession);
 
-// CRUD + pagination
-router.get("/", ChatSessionController.getAll); // GET /api/personas?page=1&limit=10
-router.get("/:id", ChatSessionController.getById); // GET /api/personas/:id
-router.post("/", ChatSessionController.create); // POST /api/personas
-router.patch("/:id", ChatSessionController.update); // patch /api/personas/:id
-router.patch("/:id/status", ChatSessionController.toggleStatus); // patch /api/personas/:id
+// Gửi message vào session
+router.post("/:sessionId/sendMessage", ChatSessionController.sendMessage);
+
+// Lấy thông tin session
+router.get("/:sessionId", ChatSessionController.getSessionById);
+
+// Realtime subscribe session
+router.get("/:sessionId/subscribe", ChatSessionController.subscribeSession);
 
 module.exports = router;
