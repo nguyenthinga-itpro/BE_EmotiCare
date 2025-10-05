@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const ChatSessionController = require("../app/controllers/ChatSessionController");
-router.get("/", ChatSessionController.getAllSessions);
+router.get("/:userId", ChatSessionController.getAllSessions);
 // Tạo session mới
 router.post("/create", ChatSessionController.createSession);
 
@@ -10,7 +10,7 @@ router.post("/create", ChatSessionController.createSession);
 router.post("/:sessionId/sendMessage", ChatSessionController.sendMessage);
 
 // Lấy thông tin session
-router.get("/:sessionId", ChatSessionController.getSessionById);
+router.get("/:sessionId/getSessionById", ChatSessionController.getSessionById);
 
 // Realtime subscribe session
 router.get("/:sessionId/subscribe", ChatSessionController.subscribeSession);
