@@ -3,54 +3,60 @@ const { v4: uuidv4 } = require("uuid");
 const openai = require("../../config/openai");
 
 const ChatSessionController = {
-  // === GET ALL CHAT SESSIONS WITH PAGINATION ===
+  // === GET ALL CHAT SESSIONS WITH PAGINATION + FILTER BY USER ===
   getAllSessions: async (req, res) => {
     try {
       const { pageSize = 10, startAfter } = req.query;
-      const sessionsRef = adminRTDB.ref("chatSessions");
+      const { userId } = req.params;
 
-      const now = Date.now();
-      const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000; // 30 ngày trước
-
-      // Query: lấy các session updatedAt >= 30 ngày trước
-      let query = sessionsRef
-        .orderByChild("updatedAt")
-        .startAt(thirtyDaysAgo) // chỉ lấy session từ 30 ngày gần nhất
-        .limitToLast(Number(pageSize));
-
-      if (startAfter) {
-        query = query.endAt(Number(startAfter) - 1);
+      if (!userId) {
+        return res.status(400).json({ error: "Missing userId" });
       }
 
+      const sessionsRef = adminRTDB.ref("chatSessions");
+      let query = sessionsRef.orderByChild("userId").equalTo(userId);
       const snap = await query.get();
-      const snapVal = snap.val();
+      const allSessions = snap.val();
 
-      if (!snapVal)
+      if (!allSessions) {
         return res.status(200).json({ sessions: [], nextCursor: null });
+      }
 
-      const sessionEntries = Object.entries(snapVal); // [ [id, session], ... ]
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
-      // Load chatAIs song song
-      const sessions = await Promise.all(
-        sessionEntries.map(async ([sessionId, session]) => {
-          session.id = sessionId;
+      //  Chuyển sang mảng + lọc 30 ngày
+      let sessions = Object.entries(allSessions)
+        .map(([id, session]) => ({ id, ...session }))
+        .filter((s) => s.updatedAt >= thirtyDaysAgo);
 
-          // Lấy thêm name + image từ chatAIs
+      //  Sort giảm dần
+      sessions.sort((a, b) => b.updatedAt - a.updatedAt);
+
+      //  Pagination
+      let startIndex = 0;
+      if (startAfter) {
+        startIndex =
+          sessions.findIndex((s) => s.updatedAt === Number(startAfter)) + 1;
+      }
+
+      const paginated = sessions.slice(
+        startIndex,
+        startIndex + Number(pageSize)
+      );
+
+      //  Bổ sung chatAI info
+      const enriched = await Promise.all(
+        paginated.map(async (session) => {
           const chatAIDoc = await adminDB
             .collection("chatAIs")
             .doc(session.chatAIId)
             .get();
 
-          if (chatAIDoc.exists) {
-            const chatAIData = chatAIDoc.data();
-            session.chatAIName = chatAIData.name || "AI Assistant";
-            session.aiAvatar = chatAIData.image || "";
-          } else {
-            session.chatAIName = "AI Assistant";
-            session.aiAvatar = "";
-          }
+          session.chatAIName = chatAIDoc.exists
+            ? chatAIDoc.data().name
+            : "AI Assistant";
+          session.aiAvatar = chatAIDoc.exists ? chatAIDoc.data().image : "";
 
-          // Lấy lastMessage nếu có
           const messagesArr = session.messages
             ? Object.values(session.messages)
             : [];
@@ -63,17 +69,16 @@ const ChatSessionController = {
         })
       );
 
-      // sort descending theo updatedAt
-      sessions.sort((a, b) => b.updatedAt - a.updatedAt);
-
       const nextCursor =
-        sessions.length > 0 ? sessions[sessions.length - 1].updatedAt : null;
+        enriched.length > 0 ? enriched[enriched.length - 1].updatedAt : null;
 
-      res
-        .status(200)
-        .json({ sessions, nextCursor, pageSize: Number(pageSize) });
+      return res.status(200).json({
+        sessions: enriched,
+        nextCursor,
+        pageSize: Number(pageSize),
+      });
     } catch (err) {
-      console.error("Get all sessions error:", err);
+      console.error(" Get all sessions error:", err);
       res.status(500).json({ error: err.message });
     }
   },
