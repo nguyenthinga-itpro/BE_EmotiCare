@@ -22,6 +22,9 @@ app.use(
     credentials: true,
   })
 );
+app.get("/", (req, res) => {
+  res.send("EmotiCare Backend is running ✅");
+});
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
