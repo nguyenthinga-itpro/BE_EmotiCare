@@ -18,7 +18,8 @@ app.use(cookieParser());
 app.use(morgan("combined"));
 app.use(
   cors({
-    origin: "http://127.0.0.1:5173",
+    origin:
+      "https://emoticare-git-nga-deploy-nguyenthinga-itpros-projects.vercel.app/",
     credentials: true,
   })
 );
