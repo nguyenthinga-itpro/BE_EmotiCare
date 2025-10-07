@@ -18,7 +18,7 @@ app.use(cookieParser());
 app.use(morgan("combined"));
 app.use(
   cors({
-    origin: "https://emoticare-seven.vercel.app/",
+    origin: "https://emoticare-seven.vercel.app",
     credentials: true,
   })
 );
