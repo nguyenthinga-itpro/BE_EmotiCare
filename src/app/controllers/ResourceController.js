@@ -140,6 +140,8 @@ const ResourceController = {
   // === CREATE RESOURCE (YouTube + Web + Google News) ===
   createResource: async (req, res) => {
     try {
+      console.log("📩 [createResource] Request body:", req.body);
+
       const { title, description, type, url, query, categoryId } = req.body;
       if (!type) return res.status(400).json({ error: "Type is required" });
 
@@ -161,20 +163,28 @@ const ResourceController = {
 
       // --- YouTube ---
       if (type === "youtube") {
+        console.log("▶️ [YouTube] Processing URL:", url);
+
         if (!url)
           return res.status(400).json({ error: "YouTube URL is required" });
 
         const videoId = extractVideoId(url);
+        console.log("🎬 Extracted videoId:", videoId);
+
         if (!videoId)
           return res.status(400).json({ error: "Invalid YouTube URL" });
 
         const meta = await fetchYoutubeMeta(videoId);
+        console.log("🧠 [YouTube] Meta fetched:", meta);
 
-        // Lọc nội dung cấm
         const bannedKeywords = ["18+", "xxx", "violent"];
         if (
           bannedKeywords.some((kw) => meta.title.toLowerCase().includes(kw))
         ) {
+          console.warn(
+            "🚫 [YouTube] Video contains banned content:",
+            meta.title
+          );
           return res
             .status(400)
             .json({ error: "Video contains banned content" });
@@ -182,8 +192,6 @@ const ResourceController = {
 
         newResource = {
           ...newResource,
-          type,
-          categoryId,
           title: title || meta.title,
           description: description || meta.description,
           url: `https://www.youtube.com/watch?v=${videoId}`,
@@ -193,28 +201,46 @@ const ResourceController = {
           publishedAt: meta.publishedAt,
           tags: meta.tags,
         };
+
+        console.log("✅ [YouTube] Final newResource:", newResource);
       }
 
       // --- Web link (news/article) ---
-      // --- Web link (news/article) ---
       if (type === "news" && url) {
-        const meta = await fetchMetaFromUrl(url);
-        const article = await extractArticle(url); // lấy content chi tiết
+        console.log("📰 [News] Fetching meta/article from URL:", url);
+
+        const meta = await fetchMetaFromUrl(url).catch((err) => {
+          console.error("❌ [News] fetchMetaFromUrl error:", err.message);
+          return null;
+        });
+        const article = await extractArticle(url).catch((err) => {
+          console.error("❌ [News] extractArticle error:", err.message);
+          return null;
+        });
+
+        console.log("📊 [News] Meta result:", meta);
+        console.log("📚 [News] Article result:", article);
 
         newResource = {
           ...newResource,
-          title: title || meta.title || article.title,
-          description: description || meta.description || article.description,
+          title: title || meta?.title || article?.title,
+          description:
+            description || meta?.description || article?.description || "",
           url,
-          image: meta.image || article.image || null,
-          publishedAt: meta.date || article.published || null,
-          content: article.content || null, // 🔥 nội dung chi tiết đầy đủ
+          image: meta?.image || article?.image || null,
+          publishedAt: meta?.date || article?.published || null,
+          content: article?.content || null,
         };
+
+        console.log("✅ [News] Final newResource:", newResource);
       }
 
       // --- Google News search ---
       if (type === "news" && query && !url) {
+        console.log("🔍 [Google News] Searching for query:", query);
         const articles = await fetchGoogleNews(query, 1);
+        console.log("🧾 [Google News] Articles found:", articles.length);
+
         if (!articles.length)
           return res.status(404).json({ error: "No articles found" });
 
@@ -227,20 +253,32 @@ const ResourceController = {
           image: article.image,
           publishedAt: article.publishedAt,
         };
+
+        console.log("✅ [Google News] Final newResource:", newResource);
       }
 
+      // === Save to Firestore ===
       const docRef = await resourcesCollection.add(newResource);
       const createdDoc = await docRef.get();
 
-      return res.status(201).json({
+      const responseData = {
         message:
           type === "youtube"
             ? "YouTube resource created"
             : "Web resource created",
         resource: Resource.fromFirestore(createdDoc),
+      };
+
+      console.log("📤 [createResource] Response data:", {
+        id: createdDoc.id,
+        title: responseData.resource.title,
+        type: responseData.resource.type,
+        url: responseData.resource.url,
       });
+
+      return res.status(201).json(responseData);
     } catch (err) {
-      console.error("Create resource error:", err);
+      console.error("🔥 [createResource] Error:", err);
       res.status(500).json({ error: err.message });
     }
   },
@@ -248,16 +286,21 @@ const ResourceController = {
   updateResource: async (req, res) => {
     try {
       const { id } = req.params;
-      let updates = { ...req.body, updatedAt: Timestamp.now() };
+      console.log("🟢 updateResource called, id:", id);
+      console.log("🟡 Raw body:", req.body);
 
+      let updates = { ...req.body, updatedAt: Timestamp.now() };
       const docRef = resourcesCollection.doc(id);
       const doc = await docRef.get();
-      if (!doc.exists)
+
+      if (!doc.exists) {
+        console.warn("🔴 Resource not found:", id);
         return res.status(404).json({ error: "Resource not found" });
+      }
 
       const existing = doc.data();
 
-      // Thêm video cho news mà không đè URL
+      // Xử lý đặc biệt cho news
       if (
         updates.url &&
         existing.type === "news" &&
@@ -268,32 +311,36 @@ const ResourceController = {
           const meta = await fetchYoutubeMeta(videoId);
 
           updates.videoId = videoId;
-          // updates.image = meta.thumbnail; // giữ ảnh cũ hoặc dùng thumbnail mới
           updates.channelTitle = meta.channelTitle;
           updates.publishedAt = meta.publishedAt;
           updates.tags = meta.tags;
-
-          // giữ nguyên nội dung text
           updates.title = existing.title;
           updates.description = existing.description;
-          updates.content = existing.content;
+          updates.content = existing?.content;
 
-          // Nối URL mới vào URL gốc
           updates.url = existing.url
             ? existing.url + " + " + req.body.url
             : req.body.url;
         }
       }
 
-      await docRef.update(updates);
+      // 🔹 Loại bỏ field undefined
+      const cleanUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([_, v]) => v !== undefined)
+      );
+
+      console.log("🟢 Clean updates:", cleanUpdates);
+      await docRef.update(cleanUpdates);
+
       const updatedDoc = await docRef.get();
+      console.log("✅ Update success:", updatedDoc.data());
 
       res.status(200).json({
         message: "Resource updated",
         resource: Resource.fromFirestore(updatedDoc),
       });
     } catch (err) {
-      console.error("Update resource error:", err);
+      console.error("🔥 Update resource error:", err);
       res.status(500).json({ error: err.message });
     }
   },
