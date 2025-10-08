@@ -45,58 +45,6 @@ const PostcardController = {
       res.status(500).json({ error: err.message });
     }
   },
-  // GET ALL POSTCARDS with pagination (Realtime DB)
-  // getAllPostcards: async (req, res) => {
-  //   try {
-  //     let { pageSize = 10, sort = "desc", startAfter } = req.query;
-  //     pageSize = parseInt(pageSize);
-
-  //     let queryRef = postcardsRef.orderByChild("updatedAt");
-
-  //     // Nếu có startAfter thì dùng để phân trang
-  //     if (startAfter) {
-  //       if (sort === "asc") {
-  //         queryRef = queryRef.startAfter(Number(startAfter));
-  //       } else {
-  //         queryRef = queryRef.endBefore(Number(startAfter));
-  //       }
-  //     }
-
-  //     // Giới hạn số lượng
-  //     if (sort === "asc") {
-  //       queryRef = queryRef.limitToFirst(pageSize);
-  //     } else {
-  //       queryRef = queryRef.limitToLast(pageSize);
-  //     }
-
-  //     const snapshot = await queryRef.once("value");
-  //     const data = snapshot.val() || {};
-
-  //     // Convert object {id: value} -> array
-  //     let postcards = Object.entries(data).map(([id, value]) => ({
-  //       id,
-  //       ...value,
-  //     }));
-
-  //     // Sắp xếp lại (vì limitToLast giữ nguyên thứ tự asc)
-  //     postcards.sort((a, b) =>
-  //       sort === "asc" ? a.updatedAt - b.updatedAt : b.updatedAt - a.updatedAt
-  //     );
-
-  //     res.status(200).json({
-  //       pageSize,
-  //       total: postcards.length,
-  //       postcards,
-  //       sort: sort === "asc" ? "oldest" : "newest",
-  //       nextCursor: postcards.length
-  //         ? postcards[postcards.length - 1].updatedAt
-  //         : null,
-  //     });
-  //   } catch (err) {
-  //     console.error("Get all postcards error:", err);
-  //     res.status(500).json({ error: err.message });
-  //   }
-  // },
 
   // === GET POSTCARD BY ID ===
   getPostcardById: async (req, res) => {
@@ -160,67 +108,55 @@ const PostcardController = {
       res.status(500).json({ error: err.message });
     }
   },
-  // createPostcard: async (req, res) => {
-  //   try {
-  //     const { title, description, image, categoryId, music } = req.body;
-  //     if (!image) {
-  //       return res
-  //         .status(400)
-  //         .json({ error: "Image URL is required. Upload file first." });
-  //     }
 
-  //     let musicData = null;
-  //     if (music) {
-  //       musicData = await getSpotifyData(music);
-  //     }
-
-  //     const id = uuidv4();
-  //     const newPostcard = {
-  //       title,
-  //       description: description || "",
-  //       image,
-  //       categoryId: categoryId || "",
-  //       music: musicData,
-  //       isDisabled: false,
-  //       createdAt: Date.now(),
-  //       updatedAt: Date.now(),
-  //     };
-
-  //     await postcardsRef.child(id).set(newPostcard);
-
-  //     res.status(201).json({
-  //       message: "Postcard created",
-  //       postcard: { id, ...newPostcard },
-  //     });
-  //   } catch (err) {
-  //     console.error("Create postcard error:", err);
-  //     res.status(500).json({ error: err.message });
-  //   }
-  // },
   // === UPDATE POSTCARD ===
   updatePostcard: async (req, res) => {
     try {
       const { id } = req.params;
-      const updates = { ...req.body, updatedAt: Timestamp.now() };
-
+      const { music, ...otherUpdates } = req.body;
       const docRef = postcardsCollection.doc(id);
       const doc = await docRef.get();
-      if (!doc.exists)
+      if (!doc.exists) {
         return res.status(404).json({ error: "Postcard not found" });
-
+      }
+      const currentData = doc.data();
+      const updates = { ...otherUpdates, updatedAt: Timestamp.now() };
+      if (music !== undefined) {
+        let newMusicUrl =
+          typeof music === "string" ? music : music?.external_url || music?.url;
+        if (!newMusicUrl) {
+          updates.music = null;
+        } else {
+          updates.music = await getSpotifyData(newMusicUrl);
+        }
+      } else {
+        updates.music = currentData.music || null;
+      }
       await docRef.update(updates);
       const updatedDoc = await docRef.get();
+      const data = updatedDoc.data();
+      const responsePostcard = {
+        id: updatedDoc.id,
+        title: data.title,
+        description: data.description,
+        image: data.image,
+        categoryId: data.categoryId,
+        music: data.music || null,
+        author: data.author,
+        isDisabled: data.isDisabled,
+        createdAt: data.createdAt?.toDate().toLocaleString("vi-VN") || null,
+        updatedAt: data.updatedAt?.toDate().toLocaleString("vi-VN") || null,
+      };
 
       res.status(200).json({
         message: "Postcard updated",
-        postcard: Postcard.fromFirestore(updatedDoc),
+        postcard: responsePostcard,
       });
     } catch (err) {
       console.error("Update postcard error:", err);
       res.status(500).json({ error: err.message });
     }
   },
-
   // === TOGGLE POSTCARD STATUS ===
   togglePostcardStatus: async (req, res) => {
     try {
