@@ -7,7 +7,7 @@ const EmotionController = require("../app/controllers/EmotionController");
 router.get("/", EmotionController.getAllEmotions); // GET /api/personas?page=1&limit=10
 router.get("/:id", EmotionController.getEmotionById); // GET /api/personas/:id
 router.post("/", EmotionController.createEmotion); // POST /api/personas
-router.patch("/:id/emoti", EmotionController.updateEmotion); // patch /api/personas/:id
+router.patch("/:id/emotion", EmotionController.updateEmotion); // patch /api/personas/:id
 router.patch("/:id/status", EmotionController.toggleEmotionStatus); // patch /api/personas/:id
 
 module.exports = router;

@@ -18,11 +18,15 @@ app.use(cookieParser());
 app.use(morgan("combined"));
 app.use(
   cors({
-    origin: "https://emoticare-seven.vercel.app",
+    origin: [
+      "https://emoticare-seven.vercel.app", // production
+      "http://127.0.0.1:5173", // local dev
+    ],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
 app.get("/", (req, res) => {
   res.send("EmotiCare Backend is running ✅");
 });
