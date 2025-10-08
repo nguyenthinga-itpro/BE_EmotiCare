@@ -20,6 +20,7 @@ app.use(
   cors({
     origin: "https://emoticare-seven.vercel.app",
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 app.get("/", (req, res) => {
