@@ -5,7 +5,7 @@ const EmotionSessionController = require("../app/controllers/EmotionSessionContr
 router.get("/", EmotionSessionController.getAll);
 router.get("/:id", EmotionSessionController.getById);
 router.post("/", EmotionSessionController.create);
-router.put("/:id", EmotionSessionController.update);
+router.put("/:id/emotisession", EmotionSessionController.update);
 router.patch("/:id/status", EmotionSessionController.toggleStatus);
 
 module.exports = router;
