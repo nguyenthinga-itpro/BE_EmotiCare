@@ -8,45 +8,6 @@ function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 const AuthController = {
-  
-
-  // verifyEmail: async (req, res) => {
-  //   try {
-  //     const { email } = req.body;
-  //     console.log("email", email);
-  //     const db = getFirestore();
-  //     const snapshot = await db
-  //       .collection("users")
-  //       .where("email", "==", email)
-  //       .get();
-
-  //     if (snapshot.empty)
-  //       return res.status(404).json({ message: "User not found" });
-
-  //     let userDoc;
-  //     snapshot.forEach((doc) => (userDoc = { id: doc.id, ...doc.data() }));
-
-  //     if (userDoc.isVerify)
-  //       return res.status(400).json({ message: "Email already verified" });
-
-  //     if (isVerificationExpired(userDoc.verifyExpireAt)) {
-  //       return res.status(400).json({
-  //         message: "Verification link expired. Please register again.",
-  //       });
-  //     }
-
-  //     await db
-  //       .collection("users")
-  //       .doc(userDoc.id)
-  //       .update({ isVerify: true, updatedAt: new Date() });
-  //     return res.status(200).json({ message: "Email verified successfully!" });
-  //   } catch (err) {
-  //     console.error("Verify backend error:", err);
-  //     return res
-  //       .status(500)
-  //       .json({ message: "Verify backend failed", error: err.message });
-  //   }
-  // },
   register: async (req, res) => {
     try {
       const { email, password, name, gender, birthday } = req.body;
@@ -59,7 +20,7 @@ const AuthController = {
         disabled: false,
       });
 
-      const verificationLink = `${process.env.FRONTEND_URL}/verify?email=${email}`;
+      const verificationLink = `https://emoticare-seven.vercel.app/verify?email=${email}`;
 
       await sendVerificationMail(email, verificationLink);
 
@@ -234,56 +195,7 @@ const AuthController = {
         .json({ message: "Failed to fetch user", error: err.message });
     }
   },
-  // googleLogin: async (req, res) => {
-  //   try {
-  //     const { token } = req.body;
-  //     const decoded = await getAuth().verifyIdToken(token);
-  //     const { uid, email, name, picture } = decoded;
 
-  //     const db = getFirestore();
-  //     const userRef = db.collection("users").doc(uid);
-  //     const userDoc = await userRef.get();
-
-  //     let role = "user";
-  //     if (!userDoc.exists) {
-  //       await userRef.set({
-  //         name: name || "",
-  //         email,
-  //         image: picture || null,
-  //         role: "user",
-  //         isVerify: true,
-  //         isDisabled: false,
-  //         createdAt: new Date(),
-  //         updatedAt: new Date(),
-  //       });
-  //     } else {
-  //       const userData = userDoc.data();
-  //       role = userData.role || "user";
-  //       await userRef.update({ updatedAt: new Date() });
-  //     }
-
-  //     const appToken = jwt.sign({ uid, email, role }, process.env.JWT_SECRET, {
-  //       expiresIn: process.env.JWT_EXPIRE,
-  //     });
-  //     res.cookie("token", appToken, {
-  //       httpOnly: true,
-  //       secure: process.env.NODE_ENV === "production",
-  //       sameSite: "strict",
-  //       expires: new Date(
-  //         Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000
-  //       ),
-  //     });
-
-  //     return res.json({
-  //       message: "Google login success",
-  //       token: appToken,
-  //       user: { uid, email, name, picture, role },
-  //     });
-  //   } catch (err) {
-  //     console.error("Google login error:", err);
-  //     return res.status(401).json({ error: "Invalid Google token" });
-  //   }
-  // },
   refreshToken: async (req, res) => {
     try {
       const token = req.cookies.token; // lấy từ cookie HttpOnly
@@ -315,14 +227,7 @@ const AuthController = {
       return res.status(500).json({ message: "Refresh token failed" });
     }
   },
-  // logout: async (req, res) => {
-  //   try {
-  //     res.cookie("token", "", { httpOnly: true, expires: new Date(0) });
-  //     res.json({ message: "Logout successful" });
-  //   } catch (err) {
-  //     res.status(500).json({ message: "Logout failed", error: err.message });
-  //   }
-  // },
+
   logout: async (req, res) => {
     res.clearCookie("token", {
       httpOnly: true,
