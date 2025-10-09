@@ -20,8 +20,12 @@ const AuthController = {
         disabled: false,
       });
 
-      const verificationLink = `https://emoticare-seven.vercel.app/verify?email=${email}`;
-
+      const verificationLink = await getAuth().generateEmailVerificationLink(
+        email,
+        {
+          url: `${process.env.FRONTEND_URL}/verify?email=${email}`,
+        }
+      );
       await sendVerificationMail(email, verificationLink);
 
       const db = getFirestore();
