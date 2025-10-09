@@ -12,6 +12,7 @@ const cookieParser = require("cookie-parser");
 const route = require("./routes");
 const admin = require("firebase-admin");
 const app = express(); // <-- phải khai báo trước khi dùng middleware
+console.log("FRONTEND_URL:", process.env.FRONTEND_URL);
 
 // Middleware
 app.use(cookieParser());
