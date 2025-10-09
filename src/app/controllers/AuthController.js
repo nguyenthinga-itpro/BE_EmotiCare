@@ -1,7 +1,7 @@
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore } = require("firebase-admin/firestore");
 const jwt = require("jsonwebtoken");
-const { sendVerificationMail, sendOTP } = require("../services/MailService");
+const { sendVerificationMail } = require("../services/MailService");
 const { isVerificationExpired } = require("../middlewares/AuthMiddleware");
 // Tạo OTP ngẫu nhiên 6 số
 function generateOTP() {
