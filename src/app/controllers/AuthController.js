@@ -8,78 +8,7 @@ function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 const AuthController = {
-  // register: async (req, res) => {
-  //   try {
-  //     const { email, password, name, gender, birthday } = req.body;
-  //     console.log("Register request:", email, name, password, gender, birthday);
-
-  //     // 1. Tạo user trên Firebase Auth (server side)
-  //     const userRecord = await getAuth().createUser({
-  //       email,
-  //       password,
-  //       displayName: name || "",
-  //       disabled: false,
-  //     });
-
-  //     try {
-  //       // 2. Tạo link verify email
-  //       const actionCodeSettings = {
-  //         url: "https://emoticare-seven.vercel.app/verify?email=" + email,
-  //         handleCodeInApp: false,
-  //       };
-  //       const verificationLink = await getAuth().generateEmailVerificationLink(
-  //         email,
-  //         actionCodeSettings
-  //       );
-
-  //       // Gửi mail
-  //       await sendVerificationMail(email, verificationLink);
-
-  //       const expireAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-
-  //       // 3. Lưu thông tin vào Firestore
-  //       const db = getFirestore();
-  //       await db
-  //         .collection("users")
-  //         .doc(userRecord.uid)
-  //         .set({
-  //           name: userRecord.displayName || "",
-  //           email: userRecord.email,
-  //           image: null,
-  //           gender: gender || null, // từ req.body
-  //           dateOfBirth: birthday ? new Date(birthday) : null, // từ req.body
-  //           address: null,
-  //           role: "user",
-  //           isVerify: false,
-  //           verifyExpireAt: expireAt,
-  //           mode: "light",
-  //           isDisabled: false,
-  //           createdAt: new Date(),
-  //           updatedAt: new Date(),
-  //         });
-
-  //       // Thành công
-  //       return res.status(201).json({
-  //         message: "User registered. Check your email to verify account.",
-  //         userId: userRecord.uid,
-  //       });
-  //     } catch (firestoreErr) {
-  //       // Nếu lỗi khi lưu Firestore → rollback user trên Auth
-  //       await getAuth().deleteUser(userRecord.uid);
-  //       console.error("Register Firestore error:", firestoreErr);
-  //       return res.status(500).json({
-  //         message: "Register failed, rolled back user creation",
-  //         error: firestoreErr.message,
-  //       });
-  //     }
-  //   } catch (err) {
-  //     console.error("Register Auth error:", err);
-  //     return res.status(500).json({
-  //       message: "Register failed",
-  //       error: err.message,
-  //     });
-  //   }
-  // },
+  
 
   // verifyEmail: async (req, res) => {
   //   try {
