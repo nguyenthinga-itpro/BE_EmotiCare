@@ -147,12 +147,12 @@ const AuthController = {
 
       res.cookie("token", appToken, {
         httpOnly: true,
-        secure: false, // dev: localhost ko cần https
-        sameSite: "lax", // dev: localhost
-        expires: new Date(
-          Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000
-        ),
+        secure: true, // ✅ vì đang dùng HTTPS (Render & Vercel)
+        sameSite: "none", // ✅ cho phép cross-site cookie
+        path: "/",
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // ví dụ 7 ngày
       });
+
       console.log("Cookie set successfully");
 
       return res.json({
@@ -270,13 +270,22 @@ const AuthController = {
       return res.status(500).json({ message: "Refresh token failed" });
     }
   },
+  // logout: async (req, res) => {
+  //   try {
+  //     res.cookie("token", "", { httpOnly: true, expires: new Date(0) });
+  //     res.json({ message: "Logout successful" });
+  //   } catch (err) {
+  //     res.status(500).json({ message: "Logout failed", error: err.message });
+  //   }
+  // },
   logout: async (req, res) => {
-    try {
-      res.cookie("token", "", { httpOnly: true, expires: new Date(0) });
-      res.json({ message: "Logout successful" });
-    } catch (err) {
-      res.status(500).json({ message: "Logout failed", error: err.message });
-    }
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      path: "/",
+    });
+    res.status(200).json({ message: "Logged out" });
   },
   // 1. Yêu cầu quên mật khẩu -> gửi OTP
   forgotPassword: async (req, res) => {

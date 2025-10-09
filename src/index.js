@@ -19,11 +19,13 @@ app.use(morgan("combined"));
 app.use(
   cors({
     origin: [
-      "https://emoticare-seven.vercel.app", // production
-      "http://127.0.0.1:5173", // local dev
+      "https://emoticare-seven.vercel.app", // production FE
+      "http://127.0.0.1:5173", // local dev FE
     ],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 200,
   })
 );
 
