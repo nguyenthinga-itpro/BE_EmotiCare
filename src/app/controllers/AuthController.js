@@ -157,10 +157,10 @@ const AuthController = {
 
       res.cookie("token", appToken, {
         httpOnly: true,
-        secure: true, // ✅ vì đang dùng HTTPS (Render & Vercel)
-        sameSite: "none", // ✅ cho phép cross-site cookie
+        secure: true, 
+        sameSite: "none", 
         path: "/",
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // ví dụ 7 ngày
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 
       });
 
       console.log("Cookie set successfully");
