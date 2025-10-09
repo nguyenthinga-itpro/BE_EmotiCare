@@ -24,7 +24,7 @@ const AuthController = {
       try {
         // 2. Tạo link verify email
         const actionCodeSettings = {
-          url: "http://127.0.0.1:5173/verify?email=" + email,
+          url: "https://emoticare-seven.vercel.app/verify?email=" + email,
           handleCodeInApp: false,
         };
         const verificationLink = await getAuth().generateEmailVerificationLink(
