@@ -10,7 +10,7 @@ const morgan = require("morgan");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const route = require("./routes");
-
+const admin = require("firebase-admin");
 const app = express(); // <-- phải khai báo trước khi dùng middleware
 
 // Middleware
@@ -28,7 +28,6 @@ app.use(
     optionsSuccessStatus: 200,
   })
 );
-
 app.get("/", (req, res) => {
   res.send("EmotiCare Backend is running ✅");
 });

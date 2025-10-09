@@ -1,19 +1,128 @@
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore } = require("firebase-admin/firestore");
 const jwt = require("jsonwebtoken");
-const { sendVerificationMail } = require("../services/MailService");
+const { sendVerificationMail, sendOTP } = require("../services/MailService");
 const { isVerificationExpired } = require("../middlewares/AuthMiddleware");
 // Tạo OTP ngẫu nhiên 6 số
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 const AuthController = {
+  // register: async (req, res) => {
+  //   try {
+  //     const { email, password, name, gender, birthday } = req.body;
+  //     console.log("Register request:", email, name, password, gender, birthday);
+
+  //     // 1. Tạo user trên Firebase Auth (server side)
+  //     const userRecord = await getAuth().createUser({
+  //       email,
+  //       password,
+  //       displayName: name || "",
+  //       disabled: false,
+  //     });
+
+  //     try {
+  //       // 2. Tạo link verify email
+  //       const actionCodeSettings = {
+  //         url: "https://emoticare-seven.vercel.app/verify?email=" + email,
+  //         handleCodeInApp: false,
+  //       };
+  //       const verificationLink = await getAuth().generateEmailVerificationLink(
+  //         email,
+  //         actionCodeSettings
+  //       );
+
+  //       // Gửi mail
+  //       await sendVerificationMail(email, verificationLink);
+
+  //       const expireAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+
+  //       // 3. Lưu thông tin vào Firestore
+  //       const db = getFirestore();
+  //       await db
+  //         .collection("users")
+  //         .doc(userRecord.uid)
+  //         .set({
+  //           name: userRecord.displayName || "",
+  //           email: userRecord.email,
+  //           image: null,
+  //           gender: gender || null, // từ req.body
+  //           dateOfBirth: birthday ? new Date(birthday) : null, // từ req.body
+  //           address: null,
+  //           role: "user",
+  //           isVerify: false,
+  //           verifyExpireAt: expireAt,
+  //           mode: "light",
+  //           isDisabled: false,
+  //           createdAt: new Date(),
+  //           updatedAt: new Date(),
+  //         });
+
+  //       // Thành công
+  //       return res.status(201).json({
+  //         message: "User registered. Check your email to verify account.",
+  //         userId: userRecord.uid,
+  //       });
+  //     } catch (firestoreErr) {
+  //       // Nếu lỗi khi lưu Firestore → rollback user trên Auth
+  //       await getAuth().deleteUser(userRecord.uid);
+  //       console.error("Register Firestore error:", firestoreErr);
+  //       return res.status(500).json({
+  //         message: "Register failed, rolled back user creation",
+  //         error: firestoreErr.message,
+  //       });
+  //     }
+  //   } catch (err) {
+  //     console.error("Register Auth error:", err);
+  //     return res.status(500).json({
+  //       message: "Register failed",
+  //       error: err.message,
+  //     });
+  //   }
+  // },
+
+  // verifyEmail: async (req, res) => {
+  //   try {
+  //     const { email } = req.body;
+  //     console.log("email", email);
+  //     const db = getFirestore();
+  //     const snapshot = await db
+  //       .collection("users")
+  //       .where("email", "==", email)
+  //       .get();
+
+  //     if (snapshot.empty)
+  //       return res.status(404).json({ message: "User not found" });
+
+  //     let userDoc;
+  //     snapshot.forEach((doc) => (userDoc = { id: doc.id, ...doc.data() }));
+
+  //     if (userDoc.isVerify)
+  //       return res.status(400).json({ message: "Email already verified" });
+
+  //     if (isVerificationExpired(userDoc.verifyExpireAt)) {
+  //       return res.status(400).json({
+  //         message: "Verification link expired. Please register again.",
+  //       });
+  //     }
+
+  //     await db
+  //       .collection("users")
+  //       .doc(userDoc.id)
+  //       .update({ isVerify: true, updatedAt: new Date() });
+  //     return res.status(200).json({ message: "Email verified successfully!" });
+  //   } catch (err) {
+  //     console.error("Verify backend error:", err);
+  //     return res
+  //       .status(500)
+  //       .json({ message: "Verify backend failed", error: err.message });
+  //   }
+  // },
   register: async (req, res) => {
     try {
       const { email, password, name, gender, birthday } = req.body;
-      console.log("Register request:", email, name, password, gender, birthday);
+      console.log("Register request:", email);
 
-      // 1. Tạo user trên Firebase Auth (server side)
       const userRecord = await getAuth().createUser({
         email,
         password,
@@ -21,76 +130,45 @@ const AuthController = {
         disabled: false,
       });
 
-      try {
-        // 2. Tạo link verify email
-        const actionCodeSettings = {
-          url: "https://emoticare-seven.vercel.app/verify?email=" + email,
-          handleCodeInApp: false,
-        };
-        const verificationLink = await getAuth().generateEmailVerificationLink(
+      const verificationLink = `${process.env.FRONTEND_URL}/verify?email=${email}`;
+
+      await sendVerificationMail(email, verificationLink);
+
+      const db = getFirestore();
+      await db
+        .collection("users")
+        .doc(userRecord.uid)
+        .set({
+          name: name || "",
           email,
-          actionCodeSettings
-        );
-
-        // Gửi mail
-        await sendVerificationMail(email, verificationLink);
-
-        const expireAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-
-        // 3. Lưu thông tin vào Firestore
-        const db = getFirestore();
-        await db
-          .collection("users")
-          .doc(userRecord.uid)
-          .set({
-            name: userRecord.displayName || "",
-            email: userRecord.email,
-            image: null,
-            gender: gender || null, // từ req.body
-            dateOfBirth: birthday ? new Date(birthday) : null, // từ req.body
-            address: null,
-            role: "user",
-            isVerify: false,
-            verifyExpireAt: expireAt,
-            mode: "light",
-            isDisabled: false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
-
-        // Thành công
-        return res.status(201).json({
-          message: "User registered. Check your email to verify account.",
-          userId: userRecord.uid,
+          gender: gender || null,
+          dateOfBirth: birthday ? new Date(birthday) : null,
+          image: null,
+          role: "user",
+          isVerify: false,
+          verifyExpireAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
-      } catch (firestoreErr) {
-        // Nếu lỗi khi lưu Firestore → rollback user trên Auth
-        await getAuth().deleteUser(userRecord.uid);
-        console.error("Register Firestore error:", firestoreErr);
-        return res.status(500).json({
-          message: "Register failed, rolled back user creation",
-          error: firestoreErr.message,
-        });
-      }
-    } catch (err) {
-      console.error("Register Auth error:", err);
-      return res.status(500).json({
-        message: "Register failed",
-        error: err.message,
+
+      res.status(201).json({
+        message: "Registered successfully. Check your email for verification.",
       });
+    } catch (err) {
+      console.error("Register error:", err);
+      res.status(500).json({ message: "Register failed", error: err.message });
     }
   },
 
   verifyEmail: async (req, res) => {
     try {
       const { email } = req.body;
-      console.log("email", email);
       const db = getFirestore();
+
       const snapshot = await db
         .collection("users")
         .where("email", "==", email)
         .get();
-
       if (snapshot.empty)
         return res.status(404).json({ message: "User not found" });
 
@@ -100,25 +178,63 @@ const AuthController = {
       if (userDoc.isVerify)
         return res.status(400).json({ message: "Email already verified" });
 
-      if (isVerificationExpired(userDoc.verifyExpireAt)) {
-        return res.status(400).json({
-          message: "Verification link expired. Please register again.",
-        });
-      }
+      await db.collection("users").doc(userDoc.id).update({
+        isVerify: true,
+        updatedAt: new Date(),
+      });
 
-      await db
-        .collection("users")
-        .doc(userDoc.id)
-        .update({ isVerify: true, updatedAt: new Date() });
-      return res.status(200).json({ message: "Email verified successfully!" });
+      res.json({ message: "Email verified successfully" });
     } catch (err) {
-      console.error("Verify backend error:", err);
-      return res
-        .status(500)
-        .json({ message: "Verify backend failed", error: err.message });
+      console.error("Verify email error:", err);
+      res.status(500).json({ message: "Verify failed", error: err.message });
     }
   },
 
+  googleLogin: async (req, res) => {
+    try {
+      const { token } = req.body;
+      const decoded = await getAuth().verifyIdToken(token);
+      const { uid, email, name, picture } = decoded;
+
+      const db = getFirestore();
+      const userRef = db.collection("users").doc(uid);
+      const userDoc = await userRef.get();
+
+      let role = "user";
+      if (!userDoc.exists) {
+        await userRef.set({
+          name: name || "",
+          email,
+          image: picture || null,
+          role: "user",
+          isVerify: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      } else {
+        const data = userDoc.data();
+        role = data.role || "user";
+        await userRef.update({ updatedAt: new Date() });
+      }
+
+      const appToken = jwt.sign({ uid, email, role }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRE,
+      });
+
+      res.cookie("token", appToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        path: "/",
+        expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+
+      res.json({ message: "Google login success", token: appToken });
+    } catch (err) {
+      console.error("Google login error:", err);
+      res.status(401).json({ message: "Invalid Google token" });
+    }
+  },
   login: async (req, res) => {
     try {
       const { idToken, remember } = req.body;
@@ -189,56 +305,56 @@ const AuthController = {
         .json({ message: "Failed to fetch user", error: err.message });
     }
   },
-  googleLogin: async (req, res) => {
-    try {
-      const { token } = req.body;
-      const decoded = await getAuth().verifyIdToken(token);
-      const { uid, email, name, picture } = decoded;
+  // googleLogin: async (req, res) => {
+  //   try {
+  //     const { token } = req.body;
+  //     const decoded = await getAuth().verifyIdToken(token);
+  //     const { uid, email, name, picture } = decoded;
 
-      const db = getFirestore();
-      const userRef = db.collection("users").doc(uid);
-      const userDoc = await userRef.get();
+  //     const db = getFirestore();
+  //     const userRef = db.collection("users").doc(uid);
+  //     const userDoc = await userRef.get();
 
-      let role = "user";
-      if (!userDoc.exists) {
-        await userRef.set({
-          name: name || "",
-          email,
-          image: picture || null,
-          role: "user",
-          isVerify: true,
-          isDisabled: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-      } else {
-        const userData = userDoc.data();
-        role = userData.role || "user";
-        await userRef.update({ updatedAt: new Date() });
-      }
+  //     let role = "user";
+  //     if (!userDoc.exists) {
+  //       await userRef.set({
+  //         name: name || "",
+  //         email,
+  //         image: picture || null,
+  //         role: "user",
+  //         isVerify: true,
+  //         isDisabled: false,
+  //         createdAt: new Date(),
+  //         updatedAt: new Date(),
+  //       });
+  //     } else {
+  //       const userData = userDoc.data();
+  //       role = userData.role || "user";
+  //       await userRef.update({ updatedAt: new Date() });
+  //     }
 
-      const appToken = jwt.sign({ uid, email, role }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE,
-      });
-      res.cookie("token", appToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        expires: new Date(
-          Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000
-        ),
-      });
+  //     const appToken = jwt.sign({ uid, email, role }, process.env.JWT_SECRET, {
+  //       expiresIn: process.env.JWT_EXPIRE,
+  //     });
+  //     res.cookie("token", appToken, {
+  //       httpOnly: true,
+  //       secure: process.env.NODE_ENV === "production",
+  //       sameSite: "strict",
+  //       expires: new Date(
+  //         Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000
+  //       ),
+  //     });
 
-      return res.json({
-        message: "Google login success",
-        token: appToken,
-        user: { uid, email, name, picture, role },
-      });
-    } catch (err) {
-      console.error("Google login error:", err);
-      return res.status(401).json({ error: "Invalid Google token" });
-    }
-  },
+  //     return res.json({
+  //       message: "Google login success",
+  //       token: appToken,
+  //       user: { uid, email, name, picture, role },
+  //     });
+  //   } catch (err) {
+  //     console.error("Google login error:", err);
+  //     return res.status(401).json({ error: "Invalid Google token" });
+  //   }
+  // },
   refreshToken: async (req, res) => {
     try {
       const token = req.cookies.token; // lấy từ cookie HttpOnly
